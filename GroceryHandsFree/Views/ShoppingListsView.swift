@@ -30,6 +30,9 @@ struct ShoppingListsView: View {
                         viewModel.addList(named: newListName, in: modelContext)
                         newListName = ""
                     }
+                    .frame(maxWidth: .infinity)
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
                     .disabled(newListName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
