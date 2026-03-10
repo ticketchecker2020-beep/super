@@ -5,6 +5,8 @@ struct ListDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @StateObject private var viewModel = ListDetailViewModel()
     @State private var newItemName = ""
+    @State private var editingItem: GroceryItem?
+    @State private var editedItemName = ""
 
     let list: ShoppingList
 
@@ -16,23 +18,44 @@ struct ListDetailView: View {
         List {
             Section("Items") {
                 ForEach(sortedItems) { item in
-                    HStack {
+                    HStack(spacing: 12) {
                         Button {
                             viewModel.toggle(item, in: modelContext)
                         } label: {
                             Image(systemName: item.isChecked ? "checkmark.circle.fill" : "circle")
+                                .font(.title3)
                                 .foregroundStyle(item.isChecked ? .green : .secondary)
                         }
                         .buttonStyle(.plain)
 
-                        Text("\(item.name) x\(item.quantity)")
+                        Text(item.name)
+                            .font(.body)
                             .strikethrough(item.isChecked)
+
+                        Spacer()
+                    }
+                    .padding(.vertical, 6)
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        Button(role: .destructive) {
+                            viewModel.deleteItem(item, in: modelContext)
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+
+                        Button {
+                            editingItem = item
+                            editedItemName = item.name
+                        } label: {
+                            Label("Edit", systemImage: "pencil")
+                        }
+                        .tint(.blue)
                     }
                 }
             }
 
             Section("Add Item") {
                 TextField("New item", text: $newItemName)
+                    .textInputAutocapitalization(.words)
                 Button("Add Item") {
                     viewModel.addItem(named: newItemName, to: list, in: modelContext)
                     newItemName = ""
@@ -52,5 +75,32 @@ struct ListDetailView: View {
         }
         .navigationTitle(list.name)
         .navigationBarTitleDisplayMode(.inline)
+        .alert("Edit Item", isPresented: editBinding) {
+            TextField("Item name", text: $editedItemName)
+            Button("Cancel", role: .cancel) {
+                editingItem = nil
+                editedItemName = ""
+            }
+            Button("Save") {
+                if let item = editingItem {
+                    viewModel.renameItem(item, to: editedItemName, in: modelContext)
+                }
+                editingItem = nil
+                editedItemName = ""
+            }
+            .disabled(editedItemName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        }
+    }
+
+    private var editBinding: Binding<Bool> {
+        Binding(
+            get: { editingItem != nil },
+            set: { isPresented in
+                if !isPresented {
+                    editingItem = nil
+                    editedItemName = ""
+                }
+            }
+        )
     }
 }
