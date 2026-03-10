@@ -15,24 +15,27 @@ struct ShoppingListsView: View {
                 Section("Your Lists") {
                     ForEach(lists) { list in
                         NavigationLink(value: list) {
-                            HStack {
+                            HStack(alignment: .firstTextBaseline, spacing: 12) {
                                 Text(list.name)
                                     .font(.headline)
-                                Spacer()
+                                    .lineLimit(2)
+                                Spacer(minLength: 8)
                                 Text("\(list.items.count) items")
                                     .foregroundStyle(.secondary)
-                                    .font(.caption)
+                                    .font(.subheadline)
                             }
-                            .padding(.vertical, 6)
+                            .padding(.vertical, 10)
                         }
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                             Button(role: .destructive) {
+                                print("[Lists] Delete list tapped: \(list.name)")
                                 viewModel.deleteList(list, in: modelContext)
                             } label: {
                                 Label("Delete", systemImage: "trash")
                             }
 
                             Button {
+                                print("[Lists] Rename list tapped: \(list.name)")
                                 renamingList = list
                                 renameListName = list.name
                             } label: {
@@ -44,19 +47,25 @@ struct ShoppingListsView: View {
                 }
 
                 Section("Create List") {
-                    TextField("New list name", text: $newListName)
-                        .textInputAutocapitalization(.words)
+                    VStack(spacing: 12) {
+                        TextField("New list name", text: $newListName)
+                            .textInputAutocapitalization(.words)
+                            .textFieldStyle(.roundedBorder)
 
-                    Button("Add List") {
-                        viewModel.addList(named: newListName, in: modelContext)
-                        newListName = ""
+                        Button("Add List") {
+                            print("[Lists] Add list tapped")
+                            viewModel.addList(named: newListName, in: modelContext)
+                            newListName = ""
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 50)
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
+                        .disabled(newListName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }
-                    .frame(maxWidth: .infinity)
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                    .disabled(newListName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .padding(.vertical, 4)
                 }
             }
+            .listSectionSpacing(18)
             .navigationTitle("Shopping Lists")
             .navigationDestination(for: ShoppingList.self) { list in
                 ListDetailView(list: list)
@@ -69,6 +78,7 @@ struct ShoppingListsView: View {
                 }
                 Button("Save") {
                     if let list = renamingList {
+                        print("[Lists] Rename list saved: \(list.name)")
                         viewModel.renameList(list, to: renameListName, in: modelContext)
                     }
                     renamingList = nil
