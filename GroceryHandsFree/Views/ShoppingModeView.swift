@@ -73,8 +73,9 @@ struct ShoppingModeView: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
+                .disabled(spokenQueue.isEmpty)
 
-                Button(spokenQueue.isEmpty ? "Done" : "Next / Mark Done") {
+                Button(spokenQueue.isEmpty ? "Done" : "Next") {
                     advanceToNextItem()
                 }
                 .buttonStyle(.borderedProminent)
@@ -89,19 +90,21 @@ struct ShoppingModeView: View {
         .onAppear {
             shoppingModeViewModel.startGuidedFlow(with: spokenQueue, reason: "enter")
         }
+        .onChange(of: remainingItems.map(\.id)) { _, _ in
+            shoppingModeViewModel.startGuidedFlow(with: spokenQueue, reason: "queue-changed")
+        }
         .onDisappear {
             shoppingModeViewModel.stopSpeech()
         }
     }
 
     private func advanceToNextItem() {
-        guard let current = spokenQueue.first else { return }
+        guard let current = spokenQueue.first else {
+            print("[ShoppingMode] Advance tapped with no remaining items")
+            return
+        }
 
         print("[ShoppingMode] Advance tapped for item: \(current.name)")
         listViewModel.toggle(current, in: modelContext)
-
-        DispatchQueue.main.async {
-            shoppingModeViewModel.startGuidedFlow(with: spokenQueue, reason: "advance")
-        }
     }
 }
