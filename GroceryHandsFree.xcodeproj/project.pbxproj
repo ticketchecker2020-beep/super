@@ -14,6 +14,7 @@
 	A005 /* ShoppingListsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A105; };
 	A006 /* ListDetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A106; };
 	A00A /* ShoppingModeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A111; };
+	A00B /* RemoteControlService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A112; };
 	A007 /* ShoppingListsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A107; };
 	A008 /* ListDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A108; };
 	A009 /* ShoppingModeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A109; };
@@ -28,6 +29,7 @@
 	A105 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShoppingListsViewModel.swift; sourceTree = "<group>"; };
 	A106 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListDetailViewModel.swift; sourceTree = "<group>"; };
 	A111 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShoppingModeViewModel.swift; sourceTree = "<group>"; };
+	A112 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteControlService.swift; sourceTree = "<group>"; };
 	A107 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShoppingListsView.swift; sourceTree = "<group>"; };
 	A108 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListDetailView.swift; sourceTree = "<group>"; };
 	A109 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShoppingModeView.swift; sourceTree = "<group>"; };
@@ -70,7 +72,7 @@
 	A303 = {isa = PBXGroup; children = (A102,A103,); path = Models; sourceTree = "<group>"; };
 	A304 = {isa = PBXGroup; children = (A107,A108,A109,); path = Views; sourceTree = "<group>"; };
 	A305 = {isa = PBXGroup; children = (A105,A106,A111,); path = ViewModels; sourceTree = "<group>"; };
-	A306 = {isa = PBXGroup; children = (A104,); path = Services; sourceTree = "<group>"; };
+	A306 = {isa = PBXGroup; children = (A104,A112,); path = Services; sourceTree = "<group>"; };
 	A307 = {isa = PBXGroup; children = (A110,); path = Resources; sourceTree = "<group>"; };
 	A400 = {
 		isa = PBXGroup;
@@ -154,6 +156,7 @@
 			A005,
 			A006,
 			A00A,
+			A00B,
 			A007,
 			A008,
 			A009,

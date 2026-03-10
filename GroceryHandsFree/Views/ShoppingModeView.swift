@@ -5,6 +5,7 @@ struct ShoppingModeView: View {
     @Environment(\.modelContext) private var modelContext
     @StateObject private var listViewModel = ListDetailViewModel()
     @StateObject private var shoppingModeViewModel = ShoppingModeViewModel()
+    private let remoteControlService = RemoteControlService()
 
     let list: ShoppingList
 
@@ -69,13 +70,13 @@ struct ShoppingModeView: View {
 
             HStack(spacing: 12) {
                 Button("Repeat") {
-                    shoppingModeViewModel.repeatQueue(spokenQueue)
+                    repeatCurrentQueue(source: "button")
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
 
                 Button(spokenQueue.isEmpty ? "Done" : "Next / Mark Done") {
-                    advanceToNextItem()
+                    advanceToNextItem(source: "button")
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
@@ -88,16 +89,33 @@ struct ShoppingModeView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             shoppingModeViewModel.startGuidedFlow(with: spokenQueue, reason: "enter")
+            remoteControlService.configure(
+                onAdvanceItem: {
+                    advanceToNextItem(source: "remote")
+                },
+                onRepeatInstruction: {
+                    repeatCurrentQueue(source: "remote")
+                }
+            )
         }
         .onDisappear {
             shoppingModeViewModel.stopSpeech()
+            remoteControlService.tearDown()
         }
     }
 
-    private func advanceToNextItem() {
-        guard let current = spokenQueue.first else { return }
+    private func repeatCurrentQueue(source: String) {
+        print("[ShoppingMode] Repeat requested from \(source)")
+        shoppingModeViewModel.repeatQueue(spokenQueue)
+    }
 
-        print("[ShoppingMode] Advance tapped for item: \(current.name)")
+    private func advanceToNextItem(source: String) {
+        guard let current = spokenQueue.first else {
+            print("[ShoppingMode] Advance requested from \(source), but queue is empty")
+            return
+        }
+
+        print("[ShoppingMode] Advance requested from \(source) for item: \(current.name)")
         listViewModel.toggle(current, in: modelContext)
 
         DispatchQueue.main.async {
