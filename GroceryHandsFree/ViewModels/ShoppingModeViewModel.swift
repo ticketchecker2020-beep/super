@@ -24,45 +24,45 @@ final class ShoppingModeViewModel: ObservableObject {
 
     func startGuidedFlow(with list: ShoppingList) {
         refreshQueue(from: list)
-        perform(.readNextThree, with: list)
+        readNextThree(in: list, reason: "enter")
     }
 
-    func perform(_ action: ShoppingAction, with list: ShoppingList, markDone: ((GroceryItem) -> Void)? = nil) {
-        switch action {
-        case .repeatQueue:
-            refreshQueue(from: list)
-            speechService.speak(items: visibleQueue, reason: "repeat")
-            updateStatus(action, detail: queueSummary())
+    func repeat(in list: ShoppingList) {
+        refreshQueue(from: list)
+        speechService.speak(items: visibleQueue, reason: "repeat")
+        updateStatus(.repeatQueue, detail: queueSummary())
+        print("[ShoppingMode] Repeat tapped")
+    }
 
-        case .markDone:
-            guard let current = remainingItems(from: list).first else {
-                updateStatus(action, detail: "No remaining items")
-                return
-            }
-
-            markDone?(current)
-            refreshQueue(from: list)
-            updateStatus(action, detail: "Completed \(current.name)")
-
-        case .advance:
-            refreshQueue(from: list)
-            if let next = visibleQueue.first {
-                updateStatus(action, detail: "Now at \(next.name)")
-            } else {
-                updateStatus(action, detail: "All items completed")
-            }
-
-        case .readNextThree:
-            refreshQueue(from: list)
-            speechService.speak(items: visibleQueue, reason: "read-next-3")
-            updateStatus(action, detail: queueSummary())
+    func handleNextAndMarkDone(in list: ShoppingList, markDone: (GroceryItem) -> Void) {
+        guard let current = remainingItems(from: list).first else {
+            updateStatus(.markDone, detail: "No remaining items")
+            print("[ShoppingMode] Next/Mark Done tapped with no remaining items")
+            return
         }
 
-        print("[ShoppingMode] Action: \(action.rawValue), status: \(lastRecognizedActionText)")
+        markDone(current)
+        updateStatus(.markDone, detail: "Completed \(current.name)")
+
+        refreshQueue(from: list)
+        if let next = visibleQueue.first {
+            updateStatus(.advance, detail: "Now at \(next.name)")
+        } else {
+            updateStatus(.advance, detail: "All items completed")
+        }
+
+        readNextThree(in: list, reason: "advance")
+        print("[ShoppingMode] Next/Mark Done tapped")
     }
 
     func stopSpeech() {
         speechService.stop()
+    }
+
+    private func readNextThree(in list: ShoppingList, reason: String) {
+        refreshQueue(from: list)
+        speechService.speak(items: visibleQueue, reason: reason)
+        updateStatus(.readNextThree, detail: queueSummary())
     }
 
     private func refreshQueue(from list: ShoppingList) {
@@ -82,5 +82,6 @@ final class ShoppingModeViewModel: ObservableObject {
 
     private func updateStatus(_ action: ShoppingAction, detail: String) {
         lastRecognizedActionText = "Last action: \(action.rawValue) • \(detail)"
+        print("[ShoppingMode] Action: \(action.rawValue), status: \(lastRecognizedActionText)")
     }
 }

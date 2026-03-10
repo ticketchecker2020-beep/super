@@ -66,7 +66,7 @@ struct ShoppingModeView: View {
 
             HStack(spacing: 12) {
                 Button("Repeat") {
-                    shoppingModeViewModel.perform(.repeatQueue, with: list)
+                    shoppingModeViewModel.repeat(in: list)
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
@@ -92,11 +92,8 @@ struct ShoppingModeView: View {
     }
 
     private func advanceToNextItem() {
-        print("[ShoppingMode] Next/Mark Done tapped")
-        shoppingModeViewModel.perform(.markDone, with: list) { item in
+        shoppingModeViewModel.handleNextAndMarkDone(in: list) { item in
             listViewModel.toggle(item, in: modelContext)
         }
-        shoppingModeViewModel.perform(.advance, with: list)
-        shoppingModeViewModel.perform(.readNextThree, with: list)
     }
 }
