@@ -82,11 +82,54 @@ struct ShoppingModeView: View {
                 .disabled(spokenQueue.isEmpty)
             }
             .frame(maxWidth: .infinity)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Debug")
+                    .font(.headline)
+
+                Text(debugQueueSnapshot)
+                    .font(.footnote.monospaced())
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: 8) {
+                    Button("Read Next 3") {
+                        shoppingModeViewModel.readNextThree(remainingItems)
+                    }
+                    .buttonStyle(.bordered)
+
+                    Button("Log Queue") {
+                        shoppingModeViewModel.logQueueState(remainingItems, source: "manual")
+                    }
+                    .buttonStyle(.bordered)
+                }
+
+                HStack(spacing: 8) {
+                    TextField("Remote cmd: repeat | next | done | read3 | queue", text: $shoppingModeViewModel.remoteCommandInput)
+                        .textFieldStyle(.roundedBorder)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+
+                    Button("Send") {
+                        shoppingModeViewModel.handleRemoteInput(
+                            shoppingModeViewModel.remoteCommandInput,
+                            items: remainingItems,
+                            onMarkDone: markCurrentItemDone,
+                            onAdvance: advanceToNextItem
+                        )
+                        shoppingModeViewModel.remoteCommandInput = ""
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+            }
+            .padding()
+            .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
         }
         .padding(.horizontal)
         .navigationTitle("Shopping Mode")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
+            print("[ShoppingMode] entering_shopping_mode list='\(list.name)'")
+            shoppingModeViewModel.logQueueState(remainingItems, source: "enter")
             shoppingModeViewModel.startGuidedFlow(with: spokenQueue, reason: "enter")
         }
         .onDisappear {
@@ -94,13 +137,38 @@ struct ShoppingModeView: View {
         }
     }
 
+    private var debugQueueSnapshot: String {
+        let items = remainingItems.prefix(5).enumerated().map { index, item in
+            "\(index + 1). \(item.name) x\(item.quantity)"
+        }
+
+        if items.isEmpty {
+            return "Queue: <empty>"
+        }
+
+        return "Queue:\n" + items.joined(separator: "\n")
+    }
+
     private func advanceToNextItem() {
         guard let current = spokenQueue.first else { return }
 
-        print("[ShoppingMode] Advance tapped for item: \(current.name)")
+        print("[ShoppingMode] mark_done item='\(current.name)'")
+        print("[ShoppingMode] advance item='\(current.name)'")
         listViewModel.toggle(current, in: modelContext)
 
         DispatchQueue.main.async {
+            shoppingModeViewModel.logQueueState(remainingItems, source: "after_advance")
+            shoppingModeViewModel.startGuidedFlow(with: spokenQueue, reason: "advance")
+        }
+    }
+
+    private func markCurrentItemDone() {
+        guard let current = spokenQueue.first else { return }
+        print("[ShoppingMode] mark_done item='\(current.name)'")
+        listViewModel.toggle(current, in: modelContext)
+
+        DispatchQueue.main.async {
+            shoppingModeViewModel.logQueueState(remainingItems, source: "after_mark_done")
             shoppingModeViewModel.startGuidedFlow(with: spokenQueue, reason: "advance")
         }
     }
