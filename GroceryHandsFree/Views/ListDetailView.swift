@@ -37,6 +37,9 @@ struct ListDetailView: View {
                     viewModel.addItem(named: newItemName, to: list, in: modelContext)
                     newItemName = ""
                 }
+                .frame(maxWidth: .infinity)
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
                 .disabled(newItemName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
 
