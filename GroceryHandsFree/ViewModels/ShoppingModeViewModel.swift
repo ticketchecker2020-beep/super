@@ -1,83 +1,86 @@
-import AVFoundation
 import Foundation
 
 @MainActor
-final class ShoppingModeViewModel: NSObject, ObservableObject {
+final class ShoppingModeViewModel: ObservableObject {
+    enum ShoppingAction: String {
+        case repeatQueue = "Repeat"
+        case markDone = "Mark done"
+        case advance = "Advance"
+        case readNextThree = "Read next 3"
+    }
+
     @Published var currentlySpokenItemID: UUID?
+    @Published var visibleQueue: [GroceryItem] = []
+    @Published var lastRecognizedActionText = "Last action: —"
 
-    private let synthesizer = AVSpeechSynthesizer()
-    private var utteranceItemIDs: [ObjectIdentifier: UUID] = [:]
+    private let speechService: SpeechService
 
-    override init() {
-        super.init()
-        synthesizer.delegate = self
+    init(speechService: SpeechService = SpeechService()) {
+        self.speechService = speechService
+        self.speechService.onDidStartItem = { [weak self] itemID in
+            self?.currentlySpokenItemID = itemID
+        }
     }
 
-    func startGuidedFlow(with items: [GroceryItem], reason: String) {
-        speak(items: items, reason: reason)
+    func startGuidedFlow(with list: ShoppingList) {
+        refreshQueue(from: list)
+        perform(.readNextThree, with: list)
     }
 
-    func repeatQueue(_ items: [GroceryItem]) {
-        print("[ShoppingMode] Repeat tapped")
-        speak(items: items, reason: "repeat")
+    func perform(_ action: ShoppingAction, with list: ShoppingList, markDone: ((GroceryItem) -> Void)? = nil) {
+        switch action {
+        case .repeatQueue:
+            refreshQueue(from: list)
+            speechService.speak(items: visibleQueue, reason: "repeat")
+            updateStatus(action, detail: queueSummary())
+
+        case .markDone:
+            guard let current = remainingItems(from: list).first else {
+                updateStatus(action, detail: "No remaining items")
+                return
+            }
+
+            markDone?(current)
+            refreshQueue(from: list)
+            updateStatus(action, detail: "Completed \(current.name)")
+
+        case .advance:
+            refreshQueue(from: list)
+            if let next = visibleQueue.first {
+                updateStatus(action, detail: "Now at \(next.name)")
+            } else {
+                updateStatus(action, detail: "All items completed")
+            }
+
+        case .readNextThree:
+            refreshQueue(from: list)
+            speechService.speak(items: visibleQueue, reason: "read-next-3")
+            updateStatus(action, detail: queueSummary())
+        }
+
+        print("[ShoppingMode] Action: \(action.rawValue), status: \(lastRecognizedActionText)")
     }
 
     func stopSpeech() {
-        if synthesizer.isSpeaking {
-            synthesizer.stopSpeaking(at: .immediate)
-        }
-        utteranceItemIDs.removeAll()
-        currentlySpokenItemID = nil
+        speechService.stop()
     }
 
-    private func speak(items: [GroceryItem], reason: String) {
-        let queue = Array(items.prefix(3))
-
-        guard !queue.isEmpty else {
-            stopSpeech()
-            return
-        }
-
-        if synthesizer.isSpeaking {
-            synthesizer.stopSpeaking(at: .immediate)
-        }
-
-        utteranceItemIDs.removeAll()
-
-        for (index, item) in queue.enumerated() {
-            let prefix: String
-            switch index {
-            case 0: prefix = "פריט נוכחי"
-            case 1: prefix = "הבא בתור"
-            default: prefix = "אחריו"
-            }
-
-            let speechText = "\(prefix): \(item.name), כמות \(item.quantity)"
-            let utterance = AVSpeechUtterance(string: speechText)
-            utterance.voice = AVSpeechSynthesisVoice(language: "he-IL")
-            utterance.rate = 0.48
-            utterance.postUtteranceDelay = 0.2
-
-            utteranceItemIDs[ObjectIdentifier(utterance)] = item.id
-            synthesizer.speak(utterance)
-        }
-
-        print("[ShoppingMode] Speech queued (\(reason)): \(queue.map(\\.name).joined(separator: ", "))")
-    }
-}
-
-extension ShoppingModeViewModel: AVSpeechSynthesizerDelegate {
-    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didStart utterance: AVSpeechUtterance) {
-        currentlySpokenItemID = utteranceItemIDs[ObjectIdentifier(utterance)]
-        if let currentlySpokenItemID {
-            print("[ShoppingMode] Speech start item id: \(currentlySpokenItemID)")
-        }
+    private func refreshQueue(from list: ShoppingList) {
+        visibleQueue = Array(remainingItems(from: list).prefix(3))
     }
 
-    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
-        utteranceItemIDs.removeValue(forKey: ObjectIdentifier(utterance))
-        if !synthesizer.isSpeaking {
-            currentlySpokenItemID = nil
-        }
+    private func remainingItems(from list: ShoppingList) -> [GroceryItem] {
+        list.items
+            .filter { !$0.isChecked }
+            .sorted { $0.sortOrder < $1.sortOrder }
+    }
+
+    private func queueSummary() -> String {
+        guard !visibleQueue.isEmpty else { return "No remaining items" }
+        return visibleQueue.map(\.name).joined(separator: ", ")
+    }
+
+    private func updateStatus(_ action: ShoppingAction, detail: String) {
+        lastRecognizedActionText = "Last action: \(action.rawValue) • \(detail)"
     }
 }
