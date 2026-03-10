@@ -8,19 +8,9 @@ struct ShoppingModeView: View {
 
     let list: ShoppingList
 
-    private var remainingItems: [GroceryItem] {
-        list.items
-            .filter { !$0.isChecked }
-            .sorted { $0.sortOrder < $1.sortOrder }
-    }
-
-    private var spokenQueue: [GroceryItem] {
-        Array(remainingItems.prefix(3))
-    }
-
     var body: some View {
         VStack(spacing: 20) {
-            if let current = spokenQueue.first {
+            if let current = shoppingModeViewModel.visibleQueue.first {
                 VStack(spacing: 10) {
                     Text("Current")
                         .font(.headline)
@@ -44,11 +34,18 @@ struct ShoppingModeView: View {
                     .font(.title2.bold())
             }
 
+            Text(shoppingModeViewModel.lastRecognizedActionText)
+                .font(.body.weight(.semibold))
+                .multilineTextAlignment(.center)
+                .foregroundStyle(.primary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 4)
+
             VStack(alignment: .leading, spacing: 12) {
                 Text("Queue")
                     .font(.headline)
 
-                ForEach(spokenQueue) { item in
+                ForEach(shoppingModeViewModel.visibleQueue) { item in
                     HStack {
                         Image(systemName: shoppingModeViewModel.currentlySpokenItemID == item.id ? "speaker.wave.2.fill" : "circle.fill")
                             .foregroundStyle(shoppingModeViewModel.currentlySpokenItemID == item.id ? .blue : .secondary)
@@ -69,17 +66,17 @@ struct ShoppingModeView: View {
 
             HStack(spacing: 12) {
                 Button("Repeat") {
-                    shoppingModeViewModel.repeatQueue(spokenQueue)
+                    shoppingModeViewModel.perform(.repeatQueue, with: list)
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
 
-                Button(spokenQueue.isEmpty ? "Done" : "Next / Mark Done") {
+                Button(shoppingModeViewModel.visibleQueue.isEmpty ? "Done" : "Next / Mark Done") {
                     advanceToNextItem()
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
-                .disabled(spokenQueue.isEmpty)
+                .disabled(shoppingModeViewModel.visibleQueue.isEmpty)
             }
             .frame(maxWidth: .infinity)
         }
@@ -87,7 +84,7 @@ struct ShoppingModeView: View {
         .navigationTitle("Shopping Mode")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
-            shoppingModeViewModel.startGuidedFlow(with: spokenQueue, reason: "enter")
+            shoppingModeViewModel.startGuidedFlow(with: list)
         }
         .onDisappear {
             shoppingModeViewModel.stopSpeech()
@@ -95,13 +92,11 @@ struct ShoppingModeView: View {
     }
 
     private func advanceToNextItem() {
-        guard let current = spokenQueue.first else { return }
-
-        print("[ShoppingMode] Advance tapped for item: \(current.name)")
-        listViewModel.toggle(current, in: modelContext)
-
-        DispatchQueue.main.async {
-            shoppingModeViewModel.startGuidedFlow(with: spokenQueue, reason: "advance")
+        print("[ShoppingMode] Next/Mark Done tapped")
+        shoppingModeViewModel.perform(.markDone, with: list) { item in
+            listViewModel.toggle(item, in: modelContext)
         }
+        shoppingModeViewModel.perform(.advance, with: list)
+        shoppingModeViewModel.perform(.readNextThree, with: list)
     }
 }
