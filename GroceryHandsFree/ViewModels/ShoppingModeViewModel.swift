@@ -4,9 +4,17 @@ import Foundation
 @MainActor
 final class ShoppingModeViewModel: NSObject, ObservableObject {
     @Published var currentlySpokenItemID: UUID?
+    @Published var latestInstructionText = ""
+    @Published var latestActionDescription = "Ready"
 
     private let synthesizer = AVSpeechSynthesizer()
     private var utteranceItemIDs: [ObjectIdentifier: UUID] = [:]
+
+    enum ShoppingControlAction: String {
+        case singleTapAdvance = "single_tap_advance"
+        case doubleTapRepeat = "double_tap_repeat"
+        case longPressPreview = "long_press_preview"
+    }
 
     override init() {
         super.init()
@@ -14,12 +22,30 @@ final class ShoppingModeViewModel: NSObject, ObservableObject {
     }
 
     func startGuidedFlow(with items: [GroceryItem], reason: String) {
+        print("[ShoppingMode] startGuidedFlow reason=\(reason) items=\(items.map(\\.name))")
         speak(items: items, reason: reason)
     }
 
     func repeatQueue(_ items: [GroceryItem]) {
-        print("[ShoppingMode] Repeat tapped")
+        print("[ShoppingMode] Repeat queue request items=\(items.map(\\.name))")
         speak(items: items, reason: "repeat")
+    }
+
+    func handle(action: ShoppingControlAction, queue: [GroceryItem], executeAdvance: () -> Void) {
+        switch action {
+        case .singleTapAdvance:
+            latestActionDescription = "Single tap: item completed"
+            print("[ShoppingMode] Action single tap -> mark done and advance")
+            executeAdvance()
+        case .doubleTapRepeat:
+            latestActionDescription = "Double tap: repeated last instruction"
+            print("[ShoppingMode] Action double tap -> repeat last instruction")
+            repeatLastInstructionOrQueue(queue)
+        case .longPressPreview:
+            latestActionDescription = "Long press: previewed next 3 items"
+            print("[ShoppingMode] Action long press -> read next 3 items")
+            readNextThreeItems(queue)
+        }
     }
 
     func stopSpeech() {
@@ -53,6 +79,9 @@ final class ShoppingModeViewModel: NSObject, ObservableObject {
             }
 
             let speechText = "\(prefix): \(item.name), כמות \(item.quantity)"
+            if index == 0 {
+                latestInstructionText = speechText
+            }
             let utterance = AVSpeechUtterance(string: speechText)
             utterance.voice = AVSpeechSynthesisVoice(language: "he-IL")
             utterance.rate = 0.48
@@ -63,6 +92,34 @@ final class ShoppingModeViewModel: NSObject, ObservableObject {
         }
 
         print("[ShoppingMode] Speech queued (\(reason)): \(queue.map(\\.name).joined(separator: ", "))")
+    }
+
+    private func repeatLastInstructionOrQueue(_ items: [GroceryItem]) {
+        if !latestInstructionText.isEmpty {
+            speak(text: latestInstructionText, reason: "repeat_last_instruction")
+            return
+        }
+
+        speak(items: items, reason: "repeat_fallback_queue")
+    }
+
+    private func readNextThreeItems(_ items: [GroceryItem]) {
+        speak(items: Array(items.prefix(3)), reason: "preview_next_three")
+    }
+
+    private func speak(text: String, reason: String) {
+        guard !text.isEmpty else { return }
+
+        if synthesizer.isSpeaking {
+            synthesizer.stopSpeaking(at: .immediate)
+        }
+
+        utteranceItemIDs.removeAll()
+        let utterance = AVSpeechUtterance(string: text)
+        utterance.voice = AVSpeechSynthesisVoice(language: "he-IL")
+        utterance.rate = 0.48
+        synthesizer.speak(utterance)
+        print("[ShoppingMode] Speech queued (\(reason)): \(text)")
     }
 }
 
