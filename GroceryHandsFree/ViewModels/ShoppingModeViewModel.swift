@@ -4,6 +4,7 @@ import Foundation
 @MainActor
 final class ShoppingModeViewModel: NSObject, ObservableObject {
     @Published var currentlySpokenItemID: UUID?
+    @Published var remoteCommandInput = ""
 
     private let synthesizer = AVSpeechSynthesizer()
     private var utteranceItemIDs: [ObjectIdentifier: UUID] = [:]
@@ -14,12 +15,48 @@ final class ShoppingModeViewModel: NSObject, ObservableObject {
     }
 
     func startGuidedFlow(with items: [GroceryItem], reason: String) {
+        logQueueState(items, source: "start_guided_flow")
         speak(items: items, reason: reason)
     }
 
     func repeatQueue(_ items: [GroceryItem]) {
-        print("[ShoppingMode] Repeat tapped")
+        print("[ShoppingMode] repeat_action")
         speak(items: items, reason: "repeat")
+    }
+
+    func readNextThree(_ items: [GroceryItem]) {
+        print("[ShoppingMode] read_next_3")
+        speak(items: items, reason: "read_next_3")
+    }
+
+    func handleRemoteInput(_ command: String, items: [GroceryItem], onMarkDone: () -> Void, onAdvance: () -> Void) {
+        let normalized = command
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+
+        guard !normalized.isEmpty else { return }
+
+        print("[ShoppingMode] remote_input_received: \(normalized)")
+
+        switch normalized {
+        case "repeat":
+            repeatQueue(items)
+        case "next", "advance":
+            onAdvance()
+        case "done", "mark_done":
+            onMarkDone()
+        case "read3", "read_next_3":
+            readNextThree(items)
+        case "queue":
+            logQueueState(items, source: "remote_command")
+        default:
+            print("[ShoppingMode] remote_input_ignored: \(normalized)")
+        }
+    }
+
+    func logQueueState(_ items: [GroceryItem], source: String) {
+        let snapshot = items.prefix(3).map { "\($0.name)x\($0.quantity)" }.joined(separator: " | ")
+        print("[ShoppingMode] queue_state(\(source)): [\(snapshot)]")
     }
 
     func stopSpeech() {
@@ -62,7 +99,7 @@ final class ShoppingModeViewModel: NSObject, ObservableObject {
             synthesizer.speak(utterance)
         }
 
-        print("[ShoppingMode] Speech queued (\(reason)): \(queue.map(\\.name).joined(separator: ", "))")
+        print("[ShoppingMode] speech_start_queued(\(reason)): \(queue.map(\\.name).joined(separator: ", "))")
     }
 }
 
@@ -70,7 +107,7 @@ extension ShoppingModeViewModel: AVSpeechSynthesizerDelegate {
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didStart utterance: AVSpeechUtterance) {
         currentlySpokenItemID = utteranceItemIDs[ObjectIdentifier(utterance)]
         if let currentlySpokenItemID {
-            print("[ShoppingMode] Speech start item id: \(currentlySpokenItemID)")
+            print("[ShoppingMode] speech_start item_id: \(currentlySpokenItemID)")
         }
     }
 
